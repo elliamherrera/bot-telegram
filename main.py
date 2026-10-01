@@ -5,6 +5,7 @@ import pytz
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from aiohttp import web
 
 # Configuración de Logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -22,10 +23,9 @@ scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 # 1. PLANTILLAS Y CONFIGURACIÓN DE SESIONES EN VIVO
 # ==============================================================================
 
-# --- PLANTILLAS DE PRE-AVISO (30 MINUTOS ANTES) ---
 LIVE_TEMPLATES_PRE = {
     "FOREX": (
-        "☀️️ Buenas tardes familia\n\n"
+        "☀️ Buenas tardes familia\n\n"
         "Nos vemos en 30 minutos 🏌🏻🏌🏻\n\n"
         "**Forex (CFD)**\n\n"
         "🇩🇴🇻🇪 10:00 AM\n"
@@ -64,7 +64,6 @@ LIVE_TEMPLATES_PRE = {
     )
 }
 
-# --- PLANTILLAS DE "YA EN VIVO" (A LA HORA EXACTA) ---
 LIVE_TEMPLATES_NOW = {
     "FOREX": (
         "🏌🏻🏌🏻 YA ESTAMOS EN VIVO 🔴\n\n"
@@ -92,7 +91,6 @@ LIVE_TEMPLATES_NOW = {
     )
 }
 
-# --- CRONOGRAMA CENTRALIZADO DE SESIONES EN VIVO ---
 LIVE_SCHEDULE = [
     {
         "active": True,
@@ -257,7 +255,6 @@ PROMO_CONFIG = {
 # 3. FUNCIONES DE ENVÍO
 # ==============================================================================
 async def enviar_aviso_sesion(app, job_data):
-    """Maneja el envío de avisos de sesiones en vivo (Pre-aviso y Ya en Vivo)."""
     tipo_session = job_data["type"]
     es_en_vivo = job_data.get("is_now", False)
     link = job_data.get("link", "")
@@ -281,7 +278,6 @@ async def enviar_aviso_sesion(app, job_data):
         logging.error(f"Error al enviar aviso de sesión {tipo_session}: {e}")
 
 async def enviar_promocion(app, job_data):
-    """Maneja el envío de publicaciones promocionales independientes."""
     mensaje = job_data["text"]
     promo_key = job_data["key"]
     
@@ -292,7 +288,23 @@ async def enviar_promocion(app, job_data):
         logging.error(f"Error al enviar promoción {promo_key}: {e}")
 
 # ==============================================================================
-# 4. COMANDOS Y SCHEDULER
+# 4. SERVIDOR WEB FICTICIO PARA PLAN GRATUITO DE RENDER
+# ==============================================================================
+async def handle_ping(request):
+    return web.Response(text="Bot is running OK")
+
+async def start_dummy_server():
+    port = int(os.getenv("PORT", 10000))
+    app_web = web.Application()
+    app_web.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app_web)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logging.info(f"Servidor HTTP ficticio escuchando en el puerto {port}")
+
+# ==============================================================================
+# 5. COMANDOS Y SCHEDULER
 # ==============================================================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id == ADMIN_ID:
@@ -301,7 +313,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos de sesiones.")
 
 async def post_init(application):
-    # --- 1. Programar Sesiones en Vivo (Pre-Aviso y Ya en Vivo) ---
+    await start_dummy_server()
+
     for session in LIVE_SCHEDULE:
         if not session.get("active", True):
             continue
@@ -309,7 +322,6 @@ async def post_init(application):
         hora_inicio = datetime.now(TIMEZONE).replace(hour=session["hour"], minute=session["minute"], second=0)
         hora_pre = hora_inicio - timedelta(minutes=30)
         
-        # Tarea A: Aviso 30 Minutos Antes
         data_pre = dict(session)
         data_pre["is_now"] = False
         scheduler.add_job(
@@ -321,7 +333,6 @@ async def post_init(application):
             args=[application, data_pre]
         )
 
-        # Tarea B: Aviso YA EN VIVO (Hora exacta)
         data_now = dict(session)
         data_now["is_now"] = True
         scheduler.add_job(
@@ -333,7 +344,6 @@ async def post_init(application):
             args=[application, data_now]
         )
 
-    # --- 2. Programar Publicaciones Promocionales Automatizadas ---
     for key, item in PROMO_CONFIG.items():
         if not item.get("active", True):
             continue
