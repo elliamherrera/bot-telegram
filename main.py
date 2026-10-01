@@ -131,7 +131,7 @@ LIVE_SCHEDULE = [
     },
     {
         "active": True,
-        "days": "sun",  # Configurado para Domingo 3:00 PM RD
+        "days": "sun",
         "hour": 15,
         "minute": 0,
         "type": "EDUCATIVA",
@@ -139,7 +139,7 @@ LIVE_SCHEDULE = [
     },
     {
         "active": True,
-        "days": "sat",  # Configurado para Sábado 3:00 PM RD
+        "days": "sat",
         "hour": 15,
         "minute": 0,
         "type": "CRIPTO",
@@ -182,7 +182,7 @@ PROMO_CONFIG = {
         "active": True,
         "days": "thu",
         "hour": 22,
-        "minute": 30,  # 30 minutos antes (10:30 PM)
+        "minute": 30,
         "day_of_month": None,
         "text": (
             "🌙🏌🏻🏌🏻 Buenas noches familia\n\n"
@@ -197,7 +197,7 @@ PROMO_CONFIG = {
         "active": True,
         "days": "thu",
         "hour": 23,
-        "minute": 0,  # Hora exacta de inicio (11:00 PM)
+        "minute": 0,
         "day_of_month": None,
         "text": (
             "🌙🏌🏻🏌🏻 YA ESTAMOS EN VIVO 🔴\n\n"
@@ -298,7 +298,7 @@ async def enviar_promocion(context: ContextTypes.DEFAULT_TYPE):
 # ==============================================================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id == ADMIN_ID:
-        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las sesiones (Educativa, Cripto, Forex, Binarias, Money Night) y promociones.")
+        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las sesiones y promociones.")
     else:
         await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos de sesiones.")
 
@@ -320,8 +320,8 @@ async def post_init(application):
             day_of_week=session["days"],
             hour=hora_pre.hour,
             minute=hora_pre.minute,
-            data=data_pre,
-            args=[application]
+            kwargs={"context": application},
+            kwargs_job={"data": data_pre}
         )
 
         # Tarea B: Aviso YA EN VIVO (Hora exacta)
@@ -333,8 +333,8 @@ async def post_init(application):
             day_of_week=session["days"],
             hour=session["hour"],
             minute=session["minute"],
-            data=data_now,
-            args=[application]
+            kwargs={"context": application},
+            kwargs_job={"data": data_now}
         )
 
     # --- 2. Programar Publicaciones Promocionales Automatizadas ---
@@ -343,7 +343,12 @@ async def post_init(application):
             continue
 
         job_data = {"key": key, "text": item["text"]}
-        cron_kwargs = {"hour": item["hour"], "minute": item["minute"], "data": job_data, "args": [application]}
+        cron_kwargs = {
+            "hour": item["hour"],
+            "minute": item["minute"],
+            "kwargs": {"context": application},
+            "kwargs_job": {"data": job_data}
+        }
         if item.get("days"):
             cron_kwargs["day_of_week"] = item["days"]
         if item.get("day_of_month"):
@@ -352,7 +357,7 @@ async def post_init(application):
         scheduler.add_job(enviar_promocion, trigger='cron', **cron_kwargs)
 
     scheduler.start()
-    logging.info("APScheduler iniciado correctamente con el cronograma semanal ajustado.")
+    logging.info("APScheduler iniciado correctamente.")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
