@@ -1,124 +1,360 @@
 import os
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from datetime import datetime, timedelta
+import pytz
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-# Configuración básica de logs
+# Configuración de Logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 8962952054
+CHANNEL_ID = os.getenv("CHANNEL_ID", "@ElliamHerrera")
 
-# Identificador de tu canal o grupo principal para enviar recordatorios (ejemplo: "@tu_canal" o ID numérico)
-CHANNEL_ID = os.getenv("CHANNEL_ID", "@tu_canal_oficial")
+# Zona Horaria de República Dominicana
+TIMEZONE = pytz.timezone("America/Santo_Domingo")
 
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 
-# --- MENÚ INTERACTIVO ---
-def main_keyboard(is_admin=False):
-    keyboard = [
-        [InlineKeyboardButton("📅 Horarios de Sesiones", callback_data="menu_horarios")],
-        [InlineKeyboardButton("📈 Registro & Brokers", callback_data="menu_brokers")],
-        [InlineKeyboardButton("📢 Canal Oficial", url="https://t.me/ElliamHerrera")]
-    ]
-    if is_admin:
-        keyboard.append([InlineKeyboardButton("⚙️ Panel Admin", callback_data="menu_admin")])
-    return InlineKeyboardMarkup(keyboard)
+# ==============================================================================
+# 1. PLANTILLAS Y CONFIGURACIÓN DE SESIONES EN VIVO
+# ==============================================================================
 
-# --- TAREAS PROGRAMADAS (APScheduler) ---
-async def recordatorio_sesion(context: ContextTypes.DEFAULT_TYPE):
-    """Envia un mensaje automático al canal informando de una sesión en vivo."""
-    mensaje = (
-        "🚨 **¡ESTAMOS A PUNTO DE COMENZAR!** 🚨\n\n"
-        "La sesión en vivo iniciará en 15 minutos.\n"
-        "Prepara tu gráfica y conéctate a tiempo. 📈🔥"
+# --- PLANTILLAS DE PRE-AVISO (30 MINUTOS ANTES) ---
+LIVE_TEMPLATES_PRE = {
+    "FOREX": (
+        "☀️ Buenas tardes familia\n\n"
+        "Nos vemos en 30 minutos 🏌🏻🏌🏻\n\n"
+        "**Forex (CFD)**\n\n"
+        "🇩🇴🇻🇪 10:00 AM\n"
+        "🇦🇷🇺🇾🇨🇱 11:00 AM\n"
+        "🇵🇪 9:00 AM\n"
+        "🇬🇹🇲🇽 8:00 AM\n\n"
+        "Link: {link}"
+    ),
+    "BINARIAS": (
+        "🌙 Buenas noches familia\n\n"
+        "Nos vemos en 30 minutos 🏌🏻🏌🏻\n\n"
+        "**Opciones Binarias**\n\n"
+        "🇩🇴🇻🇪 {hora_do}\n"
+        "🇦🇷🇺🇾🇨🇱 {hora_ar}\n"
+        "🇵🇪 {hora_pe}\n"
+        "🇬🇹🇲🇽 {hora_gt}\n\n"
+        "Link: {link}"
+    ),
+    "EDUCATIVA": (
+        "🏌🏻🏌🏻 Buenas tardes familia\n\n"
+        "Nos vemos en 30 minutos 👀\n\n"
+        "**Sesión Educativa**\n\n"
+        "🇩🇴🇻🇪 3:00 PM\n"
+        "🇦🇷🇺🇾🇨🇱 4:00 PM\n"
+        "🇵🇪 2:00 PM\n"
+        "🇬🇹🇲🇽 1:00 PM"
+    ),
+    "CRIPTO": (
+        "🏌🏻🏌🏻 Buenas tardes familia\n\n"
+        "Nos vemos en 30 minutos 👀\n\n"
+        "**Cripto Binarias**\n\n"
+        "🇩🇴🇻🇪 3:00 PM\n"
+        "🇦🇷🇺🇾🇨🇱 4:00 PM\n"
+        "🇵🇪 2:00 PM\n"
+        "🇬🇹🇲🇽 1:00 PM"
     )
+}
+
+# --- PLANTILLAS DE "YA EN VIVO" (A LA HORA EXACTA) ---
+LIVE_TEMPLATES_NOW = {
+    "FOREX": (
+        "🏌🏻🏌🏻 YA ESTAMOS EN VIVO 🔴\n\n"
+        "Forex (CFD)\n\n"
+        "Entra aquí 👇\n"
+        "{link}"
+    ),
+    "BINARIAS": (
+        "🌙🏌🏻🏌🏻 YA ESTAMOS EN VIVO 🔴\n\n"
+        "Opciones Binarias\n\n"
+        "Entra aquí 👇\n"
+        "{link}"
+    ),
+    "EDUCATIVA": (
+        "🏌🏻🏌🏻 YA ESTAMOS EN VIVO 🔴\n\n"
+        "Sesión Educativa\n\n"
+        "Entra aquí 👇\n"
+        "{link}"
+    ),
+    "CRIPTO": (
+        "🏌🏻🏌🏻 YA ESTAMOS EN VIVO 🔴\n\n"
+        "Cripto Binarias\n\n"
+        "Entra aquí 👇\n"
+        "{link}"
+    )
+}
+
+# --- CRONOGRAMA CENTRALIZADO DE SESIONES EN VIVO ---
+LIVE_SCHEDULE = [
+    {
+        "active": True,
+        "days": "mon-thu",
+        "hour": 10,
+        "minute": 0,
+        "type": "FOREX",
+        "link": "https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera"
+    },
+    {
+        "active": True,
+        "days": "sun",
+        "hour": 20,
+        "minute": 0,
+        "type": "BINARIAS",
+        "horas": ("8:00 PM", "9:00 PM", "7:00 PM", "6:00 PM"),
+        "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
+    },
+    {
+        "active": True,
+        "days": "mon,tue",
+        "hour": 21,
+        "minute": 0,
+        "type": "BINARIAS",
+        "horas": ("9:00 PM", "10:00 PM", "8:00 PM", "7:00 PM"),
+        "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
+    },
+    {
+        "active": True,
+        "days": "wed",
+        "hour": 20,
+        "minute": 0,
+        "type": "BINARIAS",
+        "horas": ("8:00 PM", "9:00 PM", "7:00 PM", "6:00 PM"),
+        "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
+    },
+    {
+        "active": True,
+        "days": "sun",  # Configurado para Domingo 3:00 PM RD
+        "hour": 15,
+        "minute": 0,
+        "type": "EDUCATIVA",
+        "link": "https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera"
+    },
+    {
+        "active": True,
+        "days": "sat",  # Configurado para Sábado 3:00 PM RD
+        "hour": 15,
+        "minute": 0,
+        "type": "CRIPTO",
+        "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
+    }
+]
+
+# ==============================================================================
+# 2. CONFIGURACIÓN CENTRALIZADA DE PUBLICACIONES PROMOCIONALES AUTOMÁTICAS
+# ==============================================================================
+PROMO_CONFIG = {
+    "PROMO_BINARIAS": {
+        "active": True,
+        "days": "mon,wed,fri,sun",
+        "hour": 17,
+        "minute": 0,
+        "day_of_month": None,
+        "text": (
+            "🏌🏻🏌🏻 ¿Todavía no tienes un broker para operar opciones binarias?\n\n"
+            "Aquí tienes una opción con pagos de hasta 85%, además de depósito y retiro mediante USDT.\n\n"
+            "Broker de Binarias\n"
+            "👉 https://app.worldbinary.pro/auth/signup?ibCode=ELIAM"
+        )
+    },
+    "PROMO_FOREX": {
+        "active": True,
+        "days": "tue,thu,sat",
+        "hour": 17,
+        "minute": 0,
+        "day_of_month": None,
+        "text": (
+            "🏌🏻🏌🏻 Si todavía no tienes tu cuenta de trading para hacer CFD, aquí tienes diferentes opciones:\n\n"
+            "Broker de Forex / Capital propio\n"
+            "👉 https://portal.impulseworld.pro/register?ibid=57806\n\n"
+            "Cuentas de Fondeo\n"
+            "👉 https://app-trader.impulseworld.pro/r/register?sponsorCode=Elliam"
+        )
+    },
+    "MONEY_NIGHT_PRE": {
+        "active": True,
+        "days": "thu",
+        "hour": 22,
+        "minute": 30,  # 30 minutos antes (10:30 PM)
+        "day_of_month": None,
+        "text": (
+            "🌙🏌🏻🏌🏻 Buenas noches familia\n\n"
+            "Nos vemos en 30 minutos 👀\n\n"
+            "**Money Night**\n"
+            "Todos los educadores juntos trabajando en todos los mercados.\n\n"
+            "Link:\n"
+            "https://minedacademy.com/academy/Trading_Pro/Money%20Night/Canal/95/259/Money_Night"
+        )
+    },
+    "MONEY_NIGHT_NOW": {
+        "active": True,
+        "days": "thu",
+        "hour": 23,
+        "minute": 0,  # Hora exacta de inicio (11:00 PM)
+        "day_of_month": None,
+        "text": (
+            "🌙🏌🏻🏌🏻 YA ESTAMOS EN VIVO 🔴\n\n"
+            "Money Night\n"
+            "Todos los educadores juntos trabajando en todos los mercados.\n\n"
+            "Entra aquí 👇\n"
+            "https://minedacademy.com/academy/Trading_Pro/Money%20Night/Canal/95/259/Money_Night"
+        )
+    },
+    "RUTA_INICIO": {
+        "active": True,
+        "days": None,
+        "hour": 10,
+        "minute": 30,
+        "day_of_month": "2,17",
+        "text": (
+            "🚀 Si ya acabas de firmar clientes con TradingPro, aquí te dejo la Ruta de Inicio Oficial para que tu comunidad arranque sin perder tiempo.\n\n"
+            "🔗 https://rutadeinicio.lovable.app\n\n"
+            "En esta ruta tu equipo encontrará:\n"
+            "✅ Inducción completa de cómo navegar TradingPro por dentro\n"
+            "✅ Cómo utilizar los escáneres e indicadores\n"
+            "✅ Cómo copiar y pegar en Forex\n"
+            "✅ Cómo copiar y pegar en Opciones Binarias\n"
+            "✅ Horarios oficiales de las sesiones\n"
+            "✅ Testimonios e imágenes con resultados reales de otros clientes\n\n"
+            "📌 Solo tienes que enviar este link a cada nuevo y ya tendrán una guía clara para empezar desde el día 1.\n"
+            "Guárdalo en destacado y úsalo con todos tus nuevos. 🚀🔥"
+        )
+    },
+    "PROMO_TEMARIO": {
+        "active": True,
+        "days": "sat,sun",
+        "hour": 10,
+        "minute": 30,
+        "day_of_month": None,
+        "text": (
+            "🚨 Familia, quiero que me ayuden a mover esto con fuerza.\n\n"
+            "Después de años enseñando, reuní en un solo temario todo lo que realmente forma parte del proceso para desarrollar una buena estructura como trader.\n\n"
+            "No es teoría ni atajos. Es un proceso completo para trabajar tu mentalidad, tu estructura y tu lectura del mercado.\n\n"
+            "Y te lo digo claro: si realmente quieres aprender, empieza por aquí y comprueba por ti mismo lo que puedes desarrollar siguiendo el proceso.\n\n"
+            "Aquí pueden ver todas las clases grabadas y compartir el enlace con su comunidad:\n"
+            "👉 https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera\n\n"
+            "Compártanlo en sus grupos, porque esto puede cambiarle la visión del trading a mucha gente. 🔥\n"
+            "Si ya viste alguna clase, comenta tu experiencia y ayuda a que otros también la vivan.\n\n"
+            "📘 **Cómo acceder al temario completo**\n"
+            "1️⃣ Entra a este enlace:\n"
+            "👉 https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera\n"
+            "2️⃣ Baja un poco hasta encontrar la sección “Lista de Contenido”.\n"
+            "3️⃣ Dentro de esa sección, haz clic en “Lista de Reproducción”.\n"
+            "4️⃣ Ahí verás el módulo llamado “Temario”.\n"
+            "5️⃣ Dentro encontrarás las 18 clases grabadas que debes ver en orden, desde la Clase 1 hasta la Clase 18, para que el proceso tenga sentido y puedas desarrollar la mentalidad y estructura completa de un trader."
+        )
+    }
+}
+
+# ==============================================================================
+# 3. FUNCIONES DE ENVÍO
+# ==============================================================================
+async def enviar_aviso_sesion(context: ContextTypes.DEFAULT_TYPE):
+    """Maneja el envío de avisos de sesiones en vivo (Pre-aviso y Ya en Vivo)."""
+    job_data = context.job.data
+    tipo_session = job_data["type"]
+    es_en_vivo = job_data.get("is_now", False)
+    link = job_data.get("link", "")
+    
+    if es_en_vivo:
+        mensaje = LIVE_TEMPLATES_NOW[tipo_session].format(link=link)
+    else:
+        if tipo_session == "BINARIAS":
+            h_do, h_ar, h_pe, h_gt = job_data["horas"]
+            mensaje = LIVE_TEMPLATES_PRE["BINARIAS"].format(hora_do=h_do, hora_ar=h_ar, hora_pe=h_pe, hora_gt=h_gt, link=link)
+        elif tipo_session == "FOREX":
+            mensaje = LIVE_TEMPLATES_PRE["FOREX"].format(link=link)
+        else:
+            mensaje = LIVE_TEMPLATES_PRE[tipo_session]
+        
     try:
         await context.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
+        etiqueta = "YA EN VIVO" if es_en_vivo else "PRE-AVISO -30 MIN"
+        logging.info(f"Mensaje de sesión {tipo_session} ({etiqueta}) enviado exitosamente.")
     except Exception as e:
-        logging.error(f"Error al enviar recordatorio automático: {e}")
+        logging.error(f"Error al enviar aviso de sesión {tipo_session}: {e}")
 
-# --- HANDLERS DE COMANDOS ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    is_admin = (user_id == ADMIN_ID)
+async def enviar_promocion(context: ContextTypes.DEFAULT_TYPE):
+    """Maneja el envío de publicaciones promocionales independientes."""
+    job_data = context.job.data
+    mensaje = job_data["text"]
+    promo_key = job_data["key"]
     
-    saludo = (
-        "¡Bienvenido, Administrador! El bot está activo y listo."
-        if is_admin else
-        "¡Hola! Bienvenido al asistente oficial. Selecciona una opción del menú:"
-    )
-    
-    await update.message.reply_text(
-        saludo,
-        reply_markup=main_keyboard(is_admin)
-    )
-
-async def enviar_comunicado(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando exclusivo de admin para transmitir un mensaje al canal: /enviar Tu Mensaje Aquí"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("⛔ No tienes permisos para usar este comando.")
-        return
-
-    texto = " ".join(context.args)
-    if not texto:
-        await update.message.reply_text("⚠️ Uso correcto: `/enviar Tu mensaje aquí`", parse_mode="Markdown")
-        return
-
     try:
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=texto, parse_mode="Markdown")
-        await update.message.reply_text("✅ Mensaje enviado exitosamente al canal.")
+        await context.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
+        logging.info(f"Promoción ({promo_key}) enviada exitosamente.")
     except Exception as e:
-        await update.message.reply_text(f"❌ Error al enviar mensaje: {e}")
+        logging.error(f"Error al enviar promoción {promo_key}: {e}")
 
-# --- HANDLER DE BOTONES (Callback) ---
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+# ==============================================================================
+# 4. COMANDOS Y SCHEDULER
+# ==============================================================================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id == ADMIN_ID:
+        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las sesiones (Educativa, Cripto, Forex, Binarias, Money Night) y promociones.")
+    else:
+        await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos de sesiones.")
 
-    if query.data == "menu_horarios":
-        texto = (
-            "🕒 **Horarios de Sesiones en Vivo:**\n\n"
-            "• **Lunes a Viernes (Mañana):** 9:00 AM AST\n"
-            "• **Martes y Jueves (Noche):** 10:00 PM AST\n\n"
-            "Mantén activadas las notificaciones del canal."
-        )
-        await query.message.edit_text(texto, parse_mode="Markdown", reply_markup=main_keyboard(query.from_user.id == ADMIN_ID))
-
-    elif query.data == "menu_brokers":
-        texto = (
-            "📊 **Plataformas Recomendadas & Registros:**\n\n"
-            "Accede a los enlaces oficiales de registro y herramientas de trading."
-        )
-        await query.message.edit_text(texto, parse_mode="Markdown", reply_markup=main_keyboard(query.from_user.id == ADMIN_ID))
-
-    elif query.data == "menu_admin":
-        texto = (
-            "🛠 **Panel de Control:**\n\n"
-            "Usa el comando `/enviar <mensaje>` para publicar directamente en el canal."
-        )
-        await query.message.edit_text(texto, parse_mode="Markdown", reply_markup=main_keyboard(True))
-
-# --- POST INIT (Configuración de Scheduler) ---
 async def post_init(application):
-    # Programar recordatorio recurrente (Ejemplo: Lunes a Viernes a las 08:45 AM)
-    scheduler.add_job(
-        recordatorio_sesion,
-        trigger='cron',
-        day_of_week='mon-fri',
-        hour=8,
-        minute=45,
-        args=[application]
-    )
+    # --- 1. Programar Sesiones en Vivo (Pre-Aviso y Ya en Vivo) ---
+    for session in LIVE_SCHEDULE:
+        if not session.get("active", True):
+            continue
+
+        hora_inicio = datetime.now(TIMEZONE).replace(hour=session["hour"], minute=session["minute"], second=0)
+        hora_pre = hora_inicio - timedelta(minutes=30)
+        
+        # Tarea A: Aviso 30 Minutos Antes
+        data_pre = dict(session)
+        data_pre["is_now"] = False
+        scheduler.add_job(
+            enviar_aviso_sesion,
+            trigger='cron',
+            day_of_week=session["days"],
+            hour=hora_pre.hour,
+            minute=hora_pre.minute,
+            data=data_pre,
+            args=[application]
+        )
+
+        # Tarea B: Aviso YA EN VIVO (Hora exacta)
+        data_now = dict(session)
+        data_now["is_now"] = True
+        scheduler.add_job(
+            enviar_aviso_sesion,
+            trigger='cron',
+            day_of_week=session["days"],
+            hour=session["hour"],
+            minute=session["minute"],
+            data=data_now,
+            args=[application]
+        )
+
+    # --- 2. Programar Publicaciones Promocionales Automatizadas ---
+    for key, item in PROMO_CONFIG.items():
+        if not item.get("active", True):
+            continue
+
+        job_data = {"key": key, "text": item["text"]}
+        cron_kwargs = {"hour": item["hour"], "minute": item["minute"], "data": job_data, "args": [application]}
+        if item.get("days"):
+            cron_kwargs["day_of_week"] = item["days"]
+        if item.get("day_of_month"):
+            cron_kwargs["day"] = item["day_of_month"]
+
+        scheduler.add_job(enviar_promocion, trigger='cron', **cron_kwargs)
+
     scheduler.start()
+    logging.info("APScheduler iniciado correctamente con el cronograma semanal ajustado.")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
-
-    # Handlers
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("enviar", enviar_comunicado))
-    app.add_handler(CallbackQueryHandler(button_handler))
-
     app.run_polling()
