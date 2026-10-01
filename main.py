@@ -25,7 +25,7 @@ scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 # --- PLANTILLAS DE PRE-AVISO (30 MINUTOS ANTES) ---
 LIVE_TEMPLATES_PRE = {
     "FOREX": (
-        "☀️ Buenas tardes familia\n\n"
+        "☀️️ Buenas tardes familia\n\n"
         "Nos vemos en 30 minutos 🏌🏻🏌🏻\n\n"
         "**Forex (CFD)**\n\n"
         "🇩🇴🇻🇪 10:00 AM\n"
@@ -256,9 +256,8 @@ PROMO_CONFIG = {
 # ==============================================================================
 # 3. FUNCIONES DE ENVÍO
 # ==============================================================================
-async def enviar_aviso_sesion(context: ContextTypes.DEFAULT_TYPE):
+async def enviar_aviso_sesion(app, job_data):
     """Maneja el envío de avisos de sesiones en vivo (Pre-aviso y Ya en Vivo)."""
-    job_data = context.job.data
     tipo_session = job_data["type"]
     es_en_vivo = job_data.get("is_now", False)
     link = job_data.get("link", "")
@@ -275,20 +274,19 @@ async def enviar_aviso_sesion(context: ContextTypes.DEFAULT_TYPE):
             mensaje = LIVE_TEMPLATES_PRE[tipo_session]
         
     try:
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
+        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
         etiqueta = "YA EN VIVO" if es_en_vivo else "PRE-AVISO -30 MIN"
         logging.info(f"Mensaje de sesión {tipo_session} ({etiqueta}) enviado exitosamente.")
     except Exception as e:
         logging.error(f"Error al enviar aviso de sesión {tipo_session}: {e}")
 
-async def enviar_promocion(context: ContextTypes.DEFAULT_TYPE):
+async def enviar_promocion(app, job_data):
     """Maneja el envío de publicaciones promocionales independientes."""
-    job_data = context.job.data
     mensaje = job_data["text"]
     promo_key = job_data["key"]
     
     try:
-        await context.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
+        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
         logging.info(f"Promoción ({promo_key}) enviada exitosamente.")
     except Exception as e:
         logging.error(f"Error al enviar promoción {promo_key}: {e}")
@@ -320,8 +318,7 @@ async def post_init(application):
             day_of_week=session["days"],
             hour=hora_pre.hour,
             minute=hora_pre.minute,
-            kwargs={"context": application},
-            kwargs_job={"data": data_pre}
+            args=[application, data_pre]
         )
 
         # Tarea B: Aviso YA EN VIVO (Hora exacta)
@@ -333,8 +330,7 @@ async def post_init(application):
             day_of_week=session["days"],
             hour=session["hour"],
             minute=session["minute"],
-            kwargs={"context": application},
-            kwargs_job={"data": data_now}
+            args=[application, data_now]
         )
 
     # --- 2. Programar Publicaciones Promocionales Automatizadas ---
@@ -346,8 +342,7 @@ async def post_init(application):
         cron_kwargs = {
             "hour": item["hour"],
             "minute": item["minute"],
-            "kwargs": {"context": application},
-            "kwargs_job": {"data": job_data}
+            "args": [application, job_data]
         }
         if item.get("days"):
             cron_kwargs["day_of_week"] = item["days"]
