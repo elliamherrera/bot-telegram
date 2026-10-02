@@ -51,7 +51,8 @@ LIVE_TEMPLATES_PRE = {
         "🇩🇴🇻🇪 3:00 PM\n"
         "🇦🇷🇺🇾🇨🇱 4:00 PM\n"
         "🇵🇪 2:00 PM\n"
-        "🇬🇹🇲🇽 1:00 PM"
+        "🇬🇹🇲🇽 1:00 PM\n\n"
+        "Link: {link}"
     ),
     "CRIPTO": (
         "🏌🏻🏌🏻 Buenas tardes familia\n\n"
@@ -60,7 +61,8 @@ LIVE_TEMPLATES_PRE = {
         "🇩🇴🇻🇪 3:00 PM\n"
         "🇦🇷🇺🇾🇨🇱 4:00 PM\n"
         "🇵🇪 2:00 PM\n"
-        "🇬🇹🇲🇽 1:00 PM"
+        "🇬🇹🇲🇽 1:00 PM\n\n"
+        "Link: {link}"
     )
 }
 
@@ -129,7 +131,7 @@ LIVE_SCHEDULE = [
     },
     {
         "active": True,
-        "days": "sun",
+        "days": "fri,sun",
         "hour": 15,
         "minute": 0,
         "type": "EDUCATIVA",
@@ -268,7 +270,7 @@ async def enviar_aviso_sesion(app, job_data):
         elif tipo_session == "FOREX":
             mensaje = LIVE_TEMPLATES_PRE["FOREX"].format(link=link)
         else:
-            mensaje = LIVE_TEMPLATES_PRE[tipo_session]
+            mensaje = LIVE_TEMPLATES_PRE[tipo_session].format(link=link)
         
     try:
         await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
