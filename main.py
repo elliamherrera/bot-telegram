@@ -27,7 +27,7 @@ LIVE_TEMPLATES_PRE = {
     "FOREX": (
         "☀️ Buenas tardes familia\n\n"
         "Nos vemos en 30 minutos 🏌🏻🏌🏻\n\n"
-        "**Forex (CFD)**\n\n"
+        "Forex (CFD)\n\n"
         "🇩🇴🇻🇪 10:00 AM\n"
         "🇦🇷🇺🇾🇨🇱 11:00 AM\n"
         "🇵🇪 9:00 AM\n"
@@ -37,7 +37,7 @@ LIVE_TEMPLATES_PRE = {
     "BINARIAS": (
         "🌙 Buenas noches familia\n\n"
         "Nos vemos en 30 minutos 🏌🏻🏌🏻\n\n"
-        "**Opciones Binarias**\n\n"
+        "Opciones Binarias\n\n"
         "🇩🇴🇻🇪 {hora_do}\n"
         "🇦🇷🇺🇾🇨🇱 {hora_ar}\n"
         "🇵🇪 {hora_pe}\n"
@@ -47,7 +47,7 @@ LIVE_TEMPLATES_PRE = {
     "EDUCATIVA": (
         "🏌🏻🏌🏻 Buenas tardes familia\n\n"
         "Nos vemos en 30 minutos 👀\n\n"
-        "**Sesión Educativa**\n\n"
+        "Sesión Educativa\n\n"
         "🇩🇴🇻🇪 3:00 PM\n"
         "🇦🇷🇺🇾🇨🇱 4:00 PM\n"
         "🇵🇪 2:00 PM\n"
@@ -57,7 +57,7 @@ LIVE_TEMPLATES_PRE = {
     "CRIPTO": (
         "🏌🏻🏌🏻 Buenas tardes familia\n\n"
         "Nos vemos en 30 minutos 👀\n\n"
-        "**Cripto Binarias**\n\n"
+        "Cripto Binarias\n\n"
         "🇩🇴🇻🇪 3:00 PM\n"
         "🇦🇷🇺🇾🇨🇱 4:00 PM\n"
         "🇵🇪 2:00 PM\n"
@@ -187,7 +187,7 @@ PROMO_CONFIG = {
         "text": (
             "🌙🏌🏻🏌🏻 Buenas noches familia\n\n"
             "Nos vemos en 30 minutos 👀\n\n"
-            "**Money Night**\n"
+            "Money Night\n"
             "Todos los educadores juntos trabajando en todos los mercados.\n\n"
             "Link:\n"
             "https://minedacademy.com/academy/Trading_Pro/Money%20Night/Canal/95/259/Money_Night"
@@ -242,7 +242,7 @@ PROMO_CONFIG = {
             "👉 https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera\n\n"
             "Compártanlo en sus grupos, porque esto puede cambiarle la visión del trading a mucha gente. 🔥\n"
             "Si ya viste alguna clase, comenta tu experiencia y ayuda a que otros también la vivan.\n\n"
-            "📘 **Cómo acceder al temario completo**\n"
+            "📘 Cómo acceder al temario completo\n"
             "1️⃣ Entra a este enlace:\n"
             "👉 https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera\n"
             "2️⃣ Baja un poco hasta encontrar la sección “Lista de Contenido”.\n"
@@ -273,7 +273,7 @@ async def enviar_aviso_sesion(app, job_data):
             mensaje = LIVE_TEMPLATES_PRE[tipo_session].format(link=link)
         
     try:
-        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
+        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje)
         etiqueta = "YA EN VIVO" if es_en_vivo else "PRE-AVISO -30 MIN"
         logging.info(f"Mensaje de sesión {tipo_session} ({etiqueta}) enviado exitosamente.")
     except Exception as e:
@@ -284,7 +284,7 @@ async def enviar_promocion(app, job_data):
     promo_key = job_data["key"]
     
     try:
-        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje, parse_mode="Markdown")
+        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje)
         logging.info(f"Promoción ({promo_key}) enviada exitosamente.")
     except Exception as e:
         logging.error(f"Error al enviar promoción {promo_key}: {e}")
