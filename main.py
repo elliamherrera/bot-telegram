@@ -93,10 +93,9 @@ LIVE_TEMPLATES_NOW = {
     )
 }
 
-# SESIONES EN VIVO DESACTIVADAS TEMPORALMENTE ("active": False)
 LIVE_SCHEDULE = [
     {
-        "active": False,
+        "active": True,
         "days": "mon-thu",
         "hour": 10,
         "minute": 0,
@@ -104,7 +103,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera"
     },
     {
-        "active": False,
+        "active": True,
         "days": "sun",
         "hour": 20,
         "minute": 0,
@@ -113,7 +112,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
     },
     {
-        "active": False,
+        "active": True,
         "days": "mon,tue",
         "hour": 21,
         "minute": 0,
@@ -122,7 +121,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
     },
     {
-        "active": False,
+        "active": True,
         "days": "wed",
         "hour": 20,
         "minute": 0,
@@ -131,7 +130,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
     },
     {
-        "active": False,
+        "active": True,
         "days": "fri,sun",
         "hour": 15,
         "minute": 0,
@@ -139,7 +138,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera"
     },
     {
-        "active": False,
+        "active": True,
         "days": "sat",
         "hour": 15,
         "minute": 0,
@@ -149,7 +148,7 @@ LIVE_SCHEDULE = [
 ]
 
 # ==============================================================================
-# 2. CONFIGURACIÓN CENTRALIZADA DE PUBLICACIONES PROMOCIONALES AUTOMÁTICAS (ACTIVAS)
+# 2. CONFIGURACIÓN CENTRALIZADA DE PUBLICACIONES PROMOCIONALES AUTOMÁTICAS
 # ==============================================================================
 PROMO_CONFIG = {
     "PROMO_BINARIAS": {
@@ -180,7 +179,7 @@ PROMO_CONFIG = {
         )
     },
     "MONEY_NIGHT_PRE": {
-        "active": False,
+        "active": True,
         "days": "thu",
         "hour": 22,
         "minute": 30,
@@ -195,7 +194,7 @@ PROMO_CONFIG = {
         )
     },
     "MONEY_NIGHT_NOW": {
-        "active": False,
+        "active": True,
         "days": "thu",
         "hour": 23,
         "minute": 0,
@@ -311,9 +310,9 @@ async def start_dummy_server():
 # ==============================================================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id == ADMIN_ID:
-        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las promociones.")
+        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las sesiones y promociones.")
     else:
-        await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos.")
+        await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos de sesiones.")
 
 async def post_init(application):
     await start_dummy_server()
