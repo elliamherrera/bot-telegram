@@ -93,9 +93,10 @@ LIVE_TEMPLATES_NOW = {
     )
 }
 
+# SESIONES EN VIVO (Mantenemos la estructura; pon "active": True cuando desees encenderlas)
 LIVE_SCHEDULE = [
     {
-        "active": True,
+        "active": False,
         "days": "mon-thu",
         "hour": 10,
         "minute": 0,
@@ -103,7 +104,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera"
     },
     {
-        "active": True,
+        "active": False,
         "days": "sun",
         "hour": 20,
         "minute": 0,
@@ -112,7 +113,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
     },
     {
-        "active": True,
+        "active": False,
         "days": "mon,tue",
         "hour": 21,
         "minute": 0,
@@ -121,7 +122,7 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
     },
     {
-        "active": True,
+        "active": False,
         "days": "wed",
         "hour": 20,
         "minute": 0,
@@ -130,15 +131,15 @@ LIVE_SCHEDULE = [
         "link": "https://minedacademy.com/academy/Trading_Pro/Binarias/Canal/78/219/Elliam_Herrera"
     },
     {
-        "active": True,
-        "days": "fri,sun",
+        "active": False,
+        "days": "fri",
         "hour": 15,
         "minute": 0,
         "type": "EDUCATIVA",
         "link": "https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera"
     },
     {
-        "active": True,
+        "active": False,
         "days": "sat",
         "hour": 15,
         "minute": 0,
@@ -178,8 +179,29 @@ PROMO_CONFIG = {
             "👉 https://app-trader.impulseworld.pro/r/register?sponsorCode=Elliam"
         )
     },
-    "MONEY_NIGHT_PRE": {
+    "PROMO_LIBRO": {
         "active": True,
+        "days": None,
+        "hour": 15,
+        "minute": 0,
+        "day_of_month": "15,30,last",
+        "text": (
+            "📚 TRAFICANTES DE PIPS\n\n"
+            "¿Quieres aprender a leer el mercado y operar con una estructura más clara? 🔥\n\n"
+            "En Traficantes de Pips encontrarás conceptos fundamentales para desarrollar tu análisis y construir un plan de trading.\n\n"
+            "📖 ¿Qué vas a encontrar?\n"
+            "🔹 Estructura de mercado\n"
+            "🔹 Liquidez y temporalidades\n"
+            "🔹 Zonas premium y descuento\n"
+            "🔹 Gestión de riesgo\n"
+            "🔹 Y mucho más para aprender a operar con un plan.\n\n"
+            "Si quieres llevar tus conocimientos al siguiente nivel, este libro es para ti. 🏌🏻🏌🏻\n\n"
+            "🔥 Consigue tu copia aquí:\n"
+            "https://pay.hotmart.com/P108088078R?off=csivbyj4&bid=1792419754550"
+        )
+    },
+    "MONEY_NIGHT_PRE": {
+        "active": False,
         "days": "thu",
         "hour": 22,
         "minute": 30,
@@ -194,7 +216,7 @@ PROMO_CONFIG = {
         )
     },
     "MONEY_NIGHT_NOW": {
-        "active": True,
+        "active": False,
         "days": "thu",
         "hour": 23,
         "minute": 0,
@@ -310,9 +332,9 @@ async def start_dummy_server():
 # ==============================================================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id == ADMIN_ID:
-        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las sesiones y promociones.")
+        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las promociones.")
     else:
-        await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos de sesiones.")
+        await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos.")
 
 async def post_init(application):
     await start_dummy_server()
