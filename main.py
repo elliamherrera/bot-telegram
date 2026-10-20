@@ -284,4 +284,111 @@ async def enviar_aviso_sesion(app, job_data):
     link = job_data.get("link", "")
     
     if es_en_vivo:
-        mensaje = LIVE_TEMPLATES_NOW[tipo_session].format(link=link
+        mensaje = LIVE_TEMPLATES_NOW[tipo_session].format(link=link)
+    else:
+        if tipo_session == "BINARIAS":
+            h_do, h_ar, h_pe, h_gt = job_data["horas"]
+            mensaje = LIVE_TEMPLATES_PRE["BINARIAS"].format(hora_do=h_do, hora_ar=h_ar, hora_pe=h_pe, hora_gt=h_gt, link=link)
+        elif tipo_session == "FOREX":
+            mensaje = LIVE_TEMPLATES_PRE["FOREX"].format(link=link)
+        else:
+            mensaje = LIVE_TEMPLATES_PRE[tipo_session].format(link=link)
+        
+    try:
+        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje)
+        etiqueta = "YA EN VIVO" if es_en_vivo else "PRE-AVISO -30 MIN"
+        logging.info(f"Mensaje de sesión {tipo_session} ({etiqueta}) enviado exitosamente.")
+    except Exception as e:
+        logging.error(f"Error al enviar aviso de sesión {tipo_session}: {e}")
+
+async def enviar_promocion(app, job_data):
+    mensaje = job_data["text"]
+    promo_key = job_data["key"]
+    
+    try:
+        await app.bot.send_message(chat_id=CHANNEL_ID, text=mensaje)
+        logging.info(f"Promoción ({promo_key}) enviada exitosamente.")
+    except Exception as e:
+        logging.error(f"Error al enviar promoción {promo_key}: {e}")
+
+# ==============================================================================
+# 4. SERVIDOR WEB FICTICIO PARA PLAN GRATUITO DE RENDER
+# ==============================================================================
+async def handle_ping(request):
+    return web.Response(text="Bot is running OK")
+
+async def start_dummy_server():
+    port = int(os.getenv("PORT", 10000))
+    app_web = web.Application()
+    app_web.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app_web)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logging.info(f"Servidor HTTP ficticio escuchando en el puerto {port}")
+
+# ==============================================================================
+# 5. COMANDOS Y SCHEDULER
+# ==============================================================================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id == ADMIN_ID:
+        await update.message.reply_text("¡Bienvenido, Administrador! El bot está activo con todas las promociones y clases en vivo.")
+    else:
+        await update.message.reply_text("¡Hola! Soy el asistente oficial del canal. Mantente atento a los avisos.")
+
+async def post_init(application):
+    await start_dummy_server()
+
+    for session in LIVE_SCHEDULE:
+        if not session.get("active", True):
+            continue
+
+        hora_inicio = datetime.now(TIMEZONE).replace(hour=session["hour"], minute=session["minute"], second=0)
+        hora_pre = hora_inicio - timedelta(minutes=30)
+        
+        data_pre = dict(session)
+        data_pre["is_now"] = False
+        scheduler.add_job(
+            enviar_aviso_sesion,
+            trigger='cron',
+            day_of_week=session["days"],
+            hour=hora_pre.hour,
+            minute=hora_pre.minute,
+            args=[application, data_pre]
+        )
+
+        data_now = dict(session)
+        data_now["is_now"] = True
+        scheduler.add_job(
+            enviar_aviso_sesion,
+            trigger='cron',
+            day_of_week=session["days"],
+            hour=session["hour"],
+            minute=session["minute"],
+            args=[application, data_now]
+        )
+
+    for key, item in PROMO_CONFIG.items():
+        if not item.get("active", True):
+            continue
+
+        job_data = {"key": key, "text": item["text"]}
+        cron_kwargs = {
+            "hour": item["hour"],
+            "minute": item["minute"],
+            "args": [application, job_data]
+        }
+        if item.get("days"):
+            cron_kwargs["day_of_week"] = item["days"]
+        if item.get("day_of_month"):
+            cron_kwargs["day"] = item["day_of_month"]
+
+        scheduler.add_job(enviar_promocion, trigger='cron', **cron_kwargs)
+
+    scheduler.start()
+    logging.info("APScheduler iniciado correctamente.")
+
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
+    app.add_handler(CommandHandler("start", start))
+    app.run_polling()
