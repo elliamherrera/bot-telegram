@@ -25,7 +25,7 @@ scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 
 LIVE_TEMPLATES_PRE = {
     "FOREX": (
-        "☀️ Buenas tardes familia\n\n"
+        "☀️ Buenos días familia\n\n"
         "Nos vemos en 30 minutos 🏌🏻🏌🏻\n\n"
         "Forex (CFD)\n\n"
         "🇩🇴🇻🇪 10:00 AM\n"
@@ -360,7 +360,7 @@ async def post_init(application):
         data_now = dict(session)
         data_now["is_now"] = True
         scheduler.add_job(
-            enviar_aviso_sesion,
+            enviar_av_sesion if 'enviar_av_sesion' in globals() else enviar_aviso_sesion,
             trigger='cron',
             day_of_week=session["days"],
             hour=session["hour"],
