@@ -48,10 +48,10 @@ LIVE_TEMPLATES_PRE = {
         "🏌🏻🏌🏻 Buenas tardes familia\n\n"
         "Nos vemos en 30 minutos 👀\n\n"
         "Sesión Educativa\n\n"
-        "🇩🇴🇻🇪 3:00 PM\n"
-        "🇦🇷🇺🇾🇨🇱 4:00 PM\n"
-        "🇵🇪 2:00 PM\n"
-        "🇬🇹🇲🇽 1:00 PM\n\n"
+        "🇩🇴🇻🇪 4:00 PM\n"
+        "🇦🇷🇺🇾🇨🇱 5:00 PM\n"
+        "🇵🇪 3:00 PM\n"
+        "🇬🇹🇲🇽 2:00 PM\n\n"
         "Link: {link}"
     ),
     "CRIPTO": (
@@ -133,7 +133,7 @@ LIVE_SCHEDULE = [
     {
         "active": True,
         "days": "fri",
-        "hour": 15,
+        "hour": 16,
         "minute": 0,
         "type": "EDUCATIVA",
         "link": "https://minedacademy.com/academy/Trading_Pro/Forex/Canal/79/220/Elliam_Herrera"
@@ -360,7 +360,7 @@ async def post_init(application):
         data_now = dict(session)
         data_now["is_now"] = True
         scheduler.add_job(
-            enviar_av_sesion if 'enviar_av_sesion' in globals() else enviar_aviso_sesion,
+            enviar_aviso_sesion,
             trigger='cron',
             day_of_week=session["days"],
             hour=session["hour"],
